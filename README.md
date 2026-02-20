@@ -1,16 +1,16 @@
 # 📸 Photobooth Web System
 
-Event-ready web-based photobooth system built with **Flask + OpenCV + Google Drive API**.
+Event-ready web-based photobooth system built with **Flask, OpenCV, and Google Drive API**.
 
 Supports:
 
-* 📷 DSLR / Phone camera
-* 🖼 Multi-slot frame auto detection (transparent or green key)
-* 🎬 Live-photo style video strip
-* ☁ Auto upload to Google Drive
-* 🔗 QR code result sharing
-* 📧 Automatic email delivery
-* 🧠 Auto folder rename by participant name
+* DSLR / Phone camera
+* Multi-slot frame auto detection (transparent or green key)
+* Live-photo style video strip
+* Auto upload to Google Drive
+* QR code result sharing
+* Automatic email delivery
+* Auto folder rename by participant name
 
 Designed for offline event deployment (local network).
 
