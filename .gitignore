@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Secrets / OAuth
+credentials.json
+token.json
+.env
+
+# Output runtime
+output/
+*.jpg
+*.jpeg
+*.png
+*.mp4
+*.avi
+
+# OS
+.DS_Store
+Thumbs.db

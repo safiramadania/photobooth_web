@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Photobooth</title>
+  <style>
+    :root{
+      --panel: rgba(0,0,0,.45);
+      --panel2: rgba(255,255,255,.14);
+      --good: #22c55e;
+      --bad: #ef4444;
+      --warn: #f59e0b;
+
+      --landing-bg: #f7f1ea;
+      --landing-grid: rgba(0,0,0,.06);
+      --landing-text: #d86b6b;
+    }
+    html, body { margin:0; height:100%; font-family: system-ui, Arial; }
+    #app { height:100%; width:100%; position:relative; overflow:hidden; }
+
+    #landingScreen{
+      position:absolute; inset:0;
+      display:none;
+      background:
+        linear-gradient(var(--landing-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--landing-grid) 1px, transparent 1px);
+      background-size: 48px 48px;
+      background-color: var(--landing-bg);
+      padding: 28px;
+      box-sizing: border-box;
+    }
+    .landingWrap{
+      height:100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      display:grid;
+      grid-template-columns: 1.2fr 0.9fr;
+      gap: 28px;
+      align-items:center;
+    }
+    .mockBrowser{
+      width:100%;
+      border-radius: 18px;
+      overflow:hidden;
+      box-shadow: 0 18px 50px rgba(0,0,0,.18);
+      border: 2px solid rgba(216,107,107,.35);
+      background: #fff;
+    }
+    .mockTopbar{
+      height: 42px; display:flex; align-items:center; gap:10px;
+      padding: 0 14px; background: rgba(231,139,139,.20);
+      border-bottom: 2px solid rgba(216,107,107,.25);
+    }
+    .dot{ width:10px;height:10px;border-radius:999px; background: rgba(216,107,107,.55); }
+    .addr{ flex:1; height: 18px; border-radius: 999px; background: rgba(255,255,255,.65); border: 1px solid rgba(216,107,107,.25); }
+    .heartBadge{
+      width:34px;height:34px;border-radius:10px; display:flex;align-items:center;justify-content:center;
+      background: rgba(231,139,139,.25); border:1px solid rgba(216,107,107,.25); font-size:18px;
+    }
+    #landingPreview{ width:100%; aspect-ratio: 16/10; object-fit: cover; background:#000; display:block; }
+    .landingRight{ display:flex; flex-direction:column; gap: 18px; align-items:flex-start; }
+    .landingTitle{ font-size: 44px; line-height: 1.05; font-weight: 900; color: var(--landing-text); }
+    .landingSub{ font-size: 14px; color: rgba(216,107,107,.85); font-weight: 700; }
+    .landingBtns{ display:flex; flex-direction:column; gap: 14px; width: min(360px, 100%); }
+    .bigBtn{
+      border:0; border-radius: 999px; padding: 16px 18px; font-size: 16px; font-weight: 900;
+      cursor:pointer; background: rgba(231,139,139,.35); color: rgba(216,107,107,1);
+      border: 2px solid rgba(216,107,107,.25); box-shadow: 0 10px 28px rgba(0,0,0,.12);
+      text-transform: uppercase;
+    }
+
+    #boothScreen{ position:absolute; inset:0; display:none; background:#000; color:#fff; }
+    #live{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#000; }
+
+    .topbar{
+      position:absolute; top:16px; left:16px; right:16px; display:flex; gap:12px;
+      align-items:center; justify-content:space-between; z-index:10;
+    }
+    .panel{
+      background:var(--panel); color:#fff; padding:10px 12px; border-radius:16px;
+      display:flex; gap:10px; align-items:center; backdrop-filter: blur(6px);
+      box-shadow: 0 10px 30px rgba(0,0,0,.3);
+    }
+    .panel .group{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    button.smallBtn{
+      border:0; border-radius:16px; padding:12px 16px; font-size:14px; font-weight:800; cursor:pointer;
+      user-select:none;
+    }
+    button.smallBtn:disabled{ opacity:.45; cursor:not-allowed; }
+    .btnPrimary{ background:#fff; color:#000; }
+    .btnGhost{ background: var(--panel2); color:#fff; }
+    select.smallSelect{
+      border:0; border-radius:16px; padding:12px 14px; font-size:14px; font-weight:800;
+      background: var(--panel2); color:#fff; outline:none;
+    }
+    select.smallSelect option{ color:#000; }
+    .statusDot{ width:10px; height:10px; border-radius:999px; background: var(--warn); box-shadow: 0 0 0 3px rgba(255,255,255,.08); }
+    .statusText{ font-weight:700; opacity:.95; }
+    .tiny{ font-size:12px; opacity:.85; }
+
+    #countOverlay{
+      position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+      pointer-events:none; z-index:20;
+      background: radial-gradient(circle at center, rgba(0,0,0,.15), rgba(0,0,0,.55));
+    }
+    #countText{ font-size:140px; font-weight:900; text-shadow: 0 12px 50px rgba(0,0,0,.8); }
+    #shotLabel{
+      position:absolute; top:22%; font-size:28px; font-weight:900; opacity:.95; text-shadow: 0 10px 40px rgba(0,0,0,.8);
+    }
+
+    #resultScreen{
+      position:absolute;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:30;
+      background: rgba(0,0,0,.92);
+      padding: 20px;
+
+      overflow-y:auto;     
+    }
+
+    #resultWrap{
+      display:flex; gap:18px; align-items:center; justify-content:center; flex-wrap:wrap;
+      max-width: 1150px; width: 100%; margin:auto 0;
+    }
+    #resultImg{
+      max-height:72vh; max-width: min(520px, 90vw); border-radius:18px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.6); background:#111;
+    }
+
+    #rightCard{
+      display:flex; flex-direction:column; gap:12px; padding:14px; border-radius:18px;
+      background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10);
+      box-shadow: 0 12px 40px rgba(0,0,0,.5);
+      min-width: min(560px, 92vw);
+    }
+
+    .qrRow{ display:flex; gap:14px; flex-wrap:wrap; justify-content:center; align-items:flex-start; }
+    .qrBox{
+      display:flex; flex-direction:column; align-items:center; gap:8px; padding:10px;
+      border-radius:16px; background: rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.10);
+      width: min(520px, 92vw);
+      box-sizing: border-box;
+    }
+    .qrTitle{ font-weight:900; opacity:.95; font-size:16px; }
+    .qrImg{ width:240px; height:240px; background:#fff; padding:10px; border-radius:16px; }
+
+    a.linkBtn{
+      text-decoration:none; display:inline-flex; align-items:center; justify-content:center;
+      padding:10px 12px; border-radius:14px; background: rgba(255,255,255,.14);
+      color:#fff; font-weight:900; width: 100%; box-sizing: border-box;
+    }
+
+    .rowBtns{
+      display:flex; gap:10px; width:100%; flex-wrap:wrap;
+    }
+    .rowBtns a.linkBtn{ flex:1; min-width: 200px; }
+
+    .emailBox{
+      display:flex; flex-direction:column; gap:8px; padding:12px; border-radius:16px;
+      border:1px solid rgba(255,255,255,.10); background: rgba(255,255,255,.04);
+    }
+    .emailRow{ display:flex; gap:10px; flex-wrap:wrap; }
+    input.emailInput{
+      flex:1; min-width: 220px;
+      border:0; border-radius:14px; padding:12px 12px; font-size:14px; font-weight:800;
+      outline:none;
+    }
+    .msg{ font-size:13px; opacity:.9; line-height:1.3; }
+    .bottomActions{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- LANDING -->
+  <section id="landingScreen">
+    <div class="landingWrap">
+      <div class="mockBrowser">
+        <div class="mockTopbar">
+          <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+          <div class="addr"></div>
+          <div class="heartBadge">❤</div>
+        </div>
+        <img id="landingPreview" src="" alt="preview" />
+      </div>
+
+      <div class="landingRight">
+        <div class="landingTitle">Buat Kenangan mu<br/>bersama Roadshow<br/>KSE 2026!</div>
+        <div class="landingSub" id="landingStatus">Preview: checking camera...</div>
+
+        <div class="landingBtns">
+          <button class="bigBtn" id="btnStartPhone">START USING PHONE</button>
+          <button class="bigBtn" id="btnStartDslr">START USING CAMERA</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BOOTH -->
+  <section id="boothScreen">
+    <img id="live" src="" alt="live"/>
+
+    <div class="topbar">
+      <div class="panel">
+        <div class="group">
+          <span class="statusDot" id="statusDot"></span>
+          <span class="statusText" id="statusText">Camera: checking...</span>
+          <span class="tiny" id="statusDetail"></span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="group">
+          <button class="smallBtn btnGhost" id="btnHome">HOME</button>
+          <button class="smallBtn btnGhost" id="btnConnect">CONNECT PHONE</button>
+          <button class="smallBtn btnGhost" id="btnReconnect">RECONNECT</button>
+          <button class="smallBtn btnGhost" id="btnFull">FULLSCREEN</button>
+          <select id="frameSelect" class="smallSelect"></select>
+          <button class="smallBtn btnPrimary" id="btnStart">START</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="countOverlay">
+      <div id="shotLabel">Shot</div>
+      <div id="countText">3</div>
+    </div>
+
+    <!-- RESULT -->
+    <div id="resultScreen">
+      <div id="resultWrap">
+        <img id="resultImg" alt="result" />
+        <div id="rightCard">
+
+          <div class="qrRow">
+            <div class="qrBox">
+              <div class="qrTitle">QR HASIL (Foto + Video)</div>
+              <img id="qrAll" class="qrImg" alt="qr hasil" />
+              <a class="linkBtn" id="openFolder" href="#" target="_blank" rel="noreferrer">BUKA FOLDER DRIVE</a>
+
+              <div class="rowBtns">
+                <a class="linkBtn" id="openPhoto" href="#" target="_blank" rel="noreferrer">PREVIEW FOTO</a>
+                <a class="linkBtn" id="openVideo" href="#" target="_blank" rel="noreferrer">PREVIEW VIDEO</a>
+              </div>
+
+              <div class="tiny" id="driveHint">Menyiapkan folder/link Drive...</div>
+            </div>
+          </div>
+
+          <div class="emailBox">
+            <div style="font-weight:900;">Nama & Email (Backup)</div>
+            <div class="msg">
+              Isi <b>Nama</b> supaya folder hasil gampang dicari panitia.
+              Email opsional: kalau diisi, hasil (foto + video) akan dikirim otomatis begitu link Drive siap.
+            </div>
+            <div class="emailRow">
+              <input class="emailInput" id="nameInput" type="text" placeholder="Nama peserta (wajib)" />
+              <input class="emailInput" id="emailInput" type="email" placeholder="Email (opsional)" />
+              <button class="smallBtn btnPrimary" id="btnSendEmail">SEND</button>
+            </div>
+            <div class="tiny" id="emailStatus"></div>
+          </div>
+
+          <div class="bottomActions">
+            <button class="smallBtn btnPrimary" id="btnDone">SELESAI</button>
+            <button class="smallBtn btnGhost" id="btnRetake">RETAKE</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+  function navTo(screen, source){
+    const p = new URLSearchParams();
+    p.set("screen", screen);
+    if (source) p.set("source", source);
+    if (activeFrame) p.set("frame", activeFrame);
+    location.search = p.toString();
+  }
+
+  const params = new URLSearchParams(location.search);
+  const screen = params.get("screen") || "landing";
+  const sourceParam = (params.get("source") || "phone").toLowerCase();
+  let activeSource = (sourceParam === "dslr") ? "dslr" : "phone";
+
+  const frameParam = (params.get("frame") || "").toLowerCase();
+  let activeFrame = frameParam;
+
+  let activeSlots = 2;
+  const frameSlotsMap = {};
+
+  // Elements
+  const landingScreen = document.getElementById("landingScreen");
+  const boothScreen = document.getElementById("boothScreen");
+
+  const landingPreview = document.getElementById("landingPreview");
+  const landingStatus = document.getElementById("landingStatus");
+  const btnStartPhone = document.getElementById("btnStartPhone");
+  const btnStartDslr = document.getElementById("btnStartDslr");
+
+  const live = document.getElementById("live");
+
+  const statusDot = document.getElementById("statusDot");
+  const statusText = document.getElementById("statusText");
+  const statusDetail = document.getElementById("statusDetail");
+
+  const btnHome = document.getElementById("btnHome");
+  const btnConnect = document.getElementById("btnConnect");
+  const btnReconnect = document.getElementById("btnReconnect");
+  const btnFull = document.getElementById("btnFull");
+  const btnStart = document.getElementById("btnStart");
+
+  const frameSelect = document.getElementById("frameSelect");
+
+  const countOverlay = document.getElementById("countOverlay");
+  const countText = document.getElementById("countText");
+  const shotLabel = document.getElementById("shotLabel");
+
+  const resultScreen = document.getElementById("resultScreen");
+  const resultImg = document.getElementById("resultImg");
+
+  const qrAll = document.getElementById("qrAll");
+  const openFolder = document.getElementById("openFolder");
+  const openPhoto = document.getElementById("openPhoto");
+  const openVideo = document.getElementById("openVideo");
+  const driveHint = document.getElementById("driveHint");
+
+  const nameInput = document.getElementById("nameInput");
+  const emailInput = document.getElementById("emailInput");
+  const btnSendEmail = document.getElementById("btnSendEmail");
+  const emailStatus = document.getElementById("emailStatus");
+
+  const btnDone = document.getElementById("btnDone");
+  const btnRetake = document.getElementById("btnRetake");
+
+  let busy = false;
+  let lastStatusOk = false;
+
+  let currentSessionId = null;
+  let pollTimer = null;
+
+  function setBusy(v){
+    busy = v;
+    btnStart.disabled = v;
+    btnConnect.disabled = v;
+    btnReconnect.disabled = v;
+    btnFull.disabled = v;
+    btnHome.disabled = v;
+    frameSelect.disabled = v;
+  }
+
+  function showResultScreen(show){
+    resultScreen.style.display = show ? "flex" : "none";
+    if (!show && pollTimer){
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }
+
+  function setStatus(ok, text, detail=""){
+    lastStatusOk = ok;
+    statusDot.style.background = ok ? "var(--good)" : "var(--bad)";
+    statusText.textContent = text;
+    statusDetail.textContent = detail;
+  }
+  function setStatusWarn(text, detail=""){
+    statusDot.style.background = "var(--warn)";
+    statusText.textContent = text;
+    statusDetail.textContent = detail;
+  }
+
+  function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+  async function apiPost(url, body=null){
+    const opt = { method:"POST" };
+    if (body){
+      opt.headers = { "Content-Type":"application/json" };
+      opt.body = JSON.stringify(body);
+    }
+    const r = await fetch(url, opt);
+    if (!r.ok) throw new Error("Request failed: " + url);
+    return await r.json().catch(() => ({}));
+  }
+
+  async function apiGetJson(url){
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("Request failed: " + url);
+    return await r.json();
+  }
+
+  async function setSource(source){
+    activeSource = source;
+    await apiPost("/api/set_source", { source });
+  }
+
+  async function loadFrames(){
+    const j = await apiGetJson(`/api/frames?ts=${Date.now()}`);
+    if (!j.ok) return;
+
+    (j.frames || []).forEach(f => {
+      frameSlotsMap[f.id] = (typeof f.slots === "number") ? f.slots : 2;
+    });
+
+    if (!activeFrame) activeFrame = j.active || (j.frames?.[0]?.id);
+    activeSlots = j.active_slots || frameSlotsMap[activeFrame] || 2;
+
+    frameSelect.innerHTML = "";
+    (j.frames || []).forEach(f => {
+      const opt = document.createElement("option");
+      opt.value = f.id;
+      opt.textContent = `${f.label || f.id} (${f.slots || "?"} slot)`;
+      frameSelect.appendChild(opt);
+    });
+    frameSelect.value = activeFrame;
+
+    const resp = await apiPost("/api/set_frame", { frame: activeFrame }).catch(()=>null);
+    if (resp && resp.ok && typeof resp.slots === "number") {
+      activeSlots = resp.slots;
+      frameSlotsMap[activeFrame] = resp.slots;
+    }
+  }
+
+  async function setFrame(fid){
+    activeFrame = fid;
+    const j = await apiPost("/api/set_frame", { frame: activeFrame });
+    if (j && j.ok && typeof j.slots === "number") {
+      activeSlots = j.slots;
+      frameSlotsMap[activeFrame] = j.slots;
+    } else {
+      activeSlots = frameSlotsMap[activeFrame] || 2;
+    }
+  }
+
+  async function checkCameraStatus(whichSource){
+    const src = whichSource || activeSource;
+    try{
+      const j = await apiGetJson(`/api/camera_status?source=${encodeURIComponent(src)}&ts=${Date.now()}`);
+      if (j.ok){
+        const detail = `src=${src} idx=${j.index} backend=${j.backend||"-"} mean=${(j.mean||0).toFixed(1)} std=${(j.std||0).toFixed(1)}`;
+        return { ok:true, detail };
+      }
+      return { ok:false, detail: (j.reason || "not ready") };
+    }catch(e){
+      return { ok:false, detail:"status error" };
+    }
+  }
+
+  async function refreshLive(){
+    live.src = `/video_feed?source=${encodeURIComponent(activeSource)}&ts=${Date.now()}`;
+  }
+
+  async function countdown(seconds, label){
+    countOverlay.style.display = "flex";
+    shotLabel.textContent = label;
+
+    const start = performance.now();
+    while(true){
+      const elapsed = (performance.now() - start)/1000;
+      const remain = Math.ceil(seconds - elapsed);
+      if (remain <= 0) break;
+      countText.textContent = remain;
+      await new Promise(requestAnimationFrame);
+    }
+    countOverlay.style.display = "none";
+  }
+
+  async function captureFrameBlob(){
+    const r = await fetch(`/api/snapshot?source=${encodeURIComponent(activeSource)}&ts=${Date.now()}`, { cache:"no-store" });
+    if (!r.ok) throw new Error("Snapshot failed");
+    return await r.blob();
+  }
+
+  async function takeShotsAndClips(){
+    const total = Math.max(1, activeSlots || 1);
+    const blobs = [];
+    const clipNames = [];
+
+    for(let i=0;i<total;i++){
+      // record before countdown (live-photo feel)
+      const clipPromise = apiPost("/api/record_clip", { source: activeSource, seconds: 4, fps: 20 }).catch(()=>null);
+
+      await countdown(3, `Shot ${i+1}/${total}`);
+      blobs.push(await captureFrameBlob());
+
+      const clipRes = await clipPromise;
+      if (clipRes && clipRes.ok && clipRes.filename) clipNames.push(clipRes.filename);
+      else clipNames.push("");
+
+      await sleep(250);
+    }
+
+    return { blobs, clipNames };
+  }
+
+  async function sendToCompose(blobs, clipNames){
+    const fd = new FormData();
+    fd.append("frame", activeFrame || "");
+    blobs.forEach((b,i)=>fd.append("shots", b, `shot_${i+1}.jpg`));
+    (clipNames || []).forEach(nm => fd.append("clips", nm || ""));
+
+    const res = await fetch("/api/compose", { method:"POST", body: fd });
+    if (!res.ok) throw new Error("Compose failed");
+    return await res.json();
+  }
+
+  function resetResultUI(){
+    qrAll.src = "";
+    openFolder.href = "#";
+    openPhoto.href = "#";
+    openVideo.href = "#";
+    driveHint.textContent = "Menyiapkan folder/link Drive...";
+    emailStatus.textContent = "";
+    nameInput.value = "";
+    emailInput.value = "";
+    btnSendEmail.disabled = false;
+    currentSessionId = null;
+  }
+
+  async function pollSession(){
+    if (!currentSessionId) return;
+    try{
+      const j = await apiGetJson(`/api/session_status?id=${encodeURIComponent(currentSessionId)}&ts=${Date.now()}`);
+      if (!j.ok) return;
+
+      const d = j.drive || {};
+      const folderUrl = d.folder_url;
+      const folderQr = d.folder_qr_data_url;
+
+      if (folderUrl && folderQr){
+        qrAll.src = folderQr;
+        openFolder.href = folderUrl;
+        driveHint.textContent = (d.status === "done")
+          ? "Semua siap ✅ (foto & video ada di folder Drive)"
+          : "Folder siap ✅ (foto/video sedang diupload...)";
+      } else {
+        driveHint.textContent = "Buat folder Drive...";
+      }
+
+      if (d.photo && d.photo.view_url){
+        openPhoto.href = d.photo.view_url;
+      }
+      if (d.video && d.video.view_url){
+        openVideo.href = d.video.view_url;
+      }
+
+      if (d.status === "error"){
+        driveHint.textContent = "Drive error: " + (d.error || "");
+      }
+
+      if (j.email && j.email.status){
+        if (j.email.status === "sending") emailStatus.textContent = "Mengirim email...";
+        if (j.email.status === "sent") emailStatus.textContent = "Email terkirim ✅";
+        if (j.email.status === "error") emailStatus.textContent = "Gagal kirim email: " + (j.email.error || "");
+      }
+
+    }catch(e){}
+  }
+
+  function showResult(data){
+    showResultScreen(true);
+    resetResultUI();
+
+    currentSessionId = data.id;
+    resultImg.src = (data.local?.photo_view_url || "") + "?t=" + Date.now();
+
+    pollTimer = setInterval(pollSession, 1000);
+    pollSession();
+
+    setTimeout(() => nameInput.focus(), 200);
+  }
+
+  async function initLanding(){
+    landingScreen.style.display = "block";
+    boothScreen.style.display = "none";
+
+    const dslrSt = await checkCameraStatus("dslr");
+    const phoneSt = await checkCameraStatus("phone");
+    const previewSource = dslrSt.ok ? "dslr" : "phone";
+
+    landingPreview.src = `/video_feed?source=${encodeURIComponent(previewSource)}&ts=${Date.now()}`;
+    landingStatus.textContent = dslrSt.ok
+      ? "Preview: CAMERA ready"
+      : (phoneSt.ok ? "Preview: PHONE ready" : "Preview: not ready. Use CONNECT in booth.");
+
+    btnStartPhone.onclick = () => navTo("booth", "phone");
+    btnStartDslr.onclick = () => navTo("booth", "dslr");
+  }
+
+  async function initBooth(){
+    landingScreen.style.display = "none";
+    boothScreen.style.display = "block";
+
+    await setSource(activeSource);
+    btnConnect.style.display = (activeSource === "phone") ? "inline-block" : "none";
+
+    await loadFrames();
+    frameSelect.onchange = async () => {
+      try{ await setFrame(frameSelect.value); }
+      catch(e){ alert("Set frame gagal"); }
+    };
+
+    await refreshLive();
+
+    async function tickStatus(){
+      const st = await checkCameraStatus(activeSource);
+      if (st.ok) setStatus(true, "Camera: OK", st.detail);
+      else setStatus(false, "Camera: NOT READY", st.detail);
+    }
+    await tickStatus();
+    setInterval(tickStatus, 1000);
+
+    btnHome.onclick = () => navTo("landing");
+
+    btnConnect.onclick = async () => {
+      if (busy) return;
+      try{
+        setBusy(true);
+        await apiPost("/api/connect_phone");
+        setStatusWarn("Opened Settings: Mobile devices", "Enable connected camera + allow prompt, then RECONNECT");
+      }catch(e){
+        setStatusWarn("Connect failed", "");
+        alert(e.message || e);
+      }finally{
+        setBusy(false);
+      }
+    };
+
+    btnReconnect.onclick = async () => {
+      if (busy) return;
+      try{
+        setBusy(true);
+        setStatusWarn("Reconnecting camera...", "");
+        await apiPost(`/api/reconnect_camera?source=${encodeURIComponent(activeSource)}`);
+        await refreshLive();
+        await sleep(700);
+      }catch(e){
+        setStatusWarn("Reconnect failed", "");
+        alert(e.message || e);
+      }finally{
+        setBusy(false);
+      }
+    };
+
+    btnFull.onclick = async () => {
+      const el = document.documentElement;
+      if (!document.fullscreenElement) await el.requestFullscreen();
+      else await document.exitFullscreen();
+    };
+
+    btnStart.onclick = async () => {
+      if (busy) return;
+
+      if (!lastStatusOk){
+        alert(activeSource === "phone"
+          ? "PHONE belum ready. Klik CONNECT PHONE lalu RECONNECT."
+          : "CAMERA/DSLR belum ready. Klik RECONNECT."
+        );
+        return;
+      }
+
+      try{
+        setBusy(true);
+        showResultScreen(false);
+
+        activeSlots = frameSlotsMap[activeFrame] || activeSlots || 2;
+
+        const { blobs, clipNames } = await takeShotsAndClips();
+        const data = await sendToCompose(blobs, clipNames);
+
+        if (!data.ok){
+          alert(data.error || "Compose error");
+          return;
+        }
+
+        showResult(data);
+      }catch(e){
+        alert(e.message || e);
+      }finally{
+        setBusy(false);
+      }
+    };
+
+    btnSendEmail.onclick = async () => {
+      if (!currentSessionId) return;
+
+      const name = (nameInput.value || "").trim();
+      const email = (emailInput.value || "").trim();
+
+      if (!name || name.length < 2){
+        alert("Nama wajib diisi ya.");
+        return;
+      }
+
+      try{
+        btnSendEmail.disabled = true;
+        emailStatus.textContent = "Menyimpan nama...";
+
+        await apiPost("/api/set_participant", { id: currentSessionId, name, email: email || null });
+
+        if (email && email.includes("@")){
+          emailStatus.textContent = "Mengirim email...";
+          const res = await apiPost("/api/send_email", { id: currentSessionId, name, email });
+          if (!res.ok) throw new Error(res.error || "Send failed");
+          emailStatus.textContent = "Request email diterima ✅ (akan terkirim otomatis)";
+        } else {
+          emailStatus.textContent = "Nama tersimpan ✅";
+          btnSendEmail.disabled = false;
+        }
+      }catch(e){
+        btnSendEmail.disabled = false;
+        emailStatus.textContent = "Gagal: " + (e.message || e);
+      }
+    };
+
+    btnDone.onclick = async () => {
+      try{
+        if (currentSessionId){
+          const name = (nameInput.value || "").trim();
+          const email = (emailInput.value || "").trim();
+          if (name && name.length >= 2){
+            await apiPost("/api/set_participant", { id: currentSessionId, name, email: email || null });
+          }
+        }
+      }catch(e){}
+      navTo("landing");
+    };
+
+    btnRetake.onclick = () => { showResultScreen(false); btnStart.click(); };
+  }
+
+  (async () => {
+    if (screen === "booth") await initBooth();
+    else await initLanding();
+  })();
+</script>
+</body>
+</html>
